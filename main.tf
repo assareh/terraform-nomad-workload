@@ -299,12 +299,18 @@ data "consul_service" "frontend_service" {
   name       = "${var.stack_id}-frontend"
 }
 
-resource "consul_intention" "example" {
+resource "consul_config_entry" "database" {
   count = var.create_consul_intention ? 1 : 0
 
-  source_name      = data.consul_service.frontend_service.name
-  destination_name = data.consul_service.mongo_service.name
-  action           = "allow"
-} 
+  name = data.consul_service.mongo_service.name
+  kind = "service-intentions"
 
-# Warning: The consul_intention resource is deprecated in favor of the consul_config_entry resource. Please see https://registry.terraform.io/providers/hashicorp/consul/latest/docs/guides/upgrading#upgrading-to-2110 on instructions to upgrade.
+  config_json = jsonencode({
+    Sources = [{
+      Action     = "allow"
+      Name       = data.consul_service.frontend_service.name
+      Precedence = 9
+      Type       = "consul"
+    }]
+  })
+}
