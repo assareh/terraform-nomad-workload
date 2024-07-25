@@ -1,17 +1,17 @@
 terraform {
   required_providers {
     vault = {
-      source = "hashicorp/vault"
+      source  = "hashicorp/vault"
       version = "~> 3.18.0"
     }
 
     nomad = {
-      source = "hashicorp/nomad"
+      source  = "hashicorp/nomad"
       version = "2.0.0-beta.1"
     }
 
     consul = {
-      source = "hashicorp/consul"
+      source  = "hashicorp/consul"
       version = "2.18.0"
     }
   }
@@ -19,8 +19,8 @@ terraform {
 
 provider "consul" {
   address = "${data.terraform_remote_state.hcp_clusters.outputs.consul_public_endpoint}:443"
-  token = data.terraform_remote_state.hcp_clusters.outputs.consul_root_token
-  scheme  = "https" 
+  token   = data.terraform_remote_state.hcp_clusters.outputs.consul_root_token
+  scheme  = "https"
 }
 
 data "terraform_remote_state" "networking" {
@@ -75,14 +75,14 @@ data "vault_kv_secret_v2" "bootstrap" {
 }
 
 provider "nomad" {
-  address = data.terraform_remote_state.nomad_cluster.outputs.nomad_public_endpoint
+  address   = data.terraform_remote_state.nomad_cluster.outputs.nomad_public_endpoint
   secret_id = data.vault_kv_secret_v2.bootstrap.data["SecretID"]
 }
 
 resource "nomad_job" "mongodb" {
   hcl2 {
     vars = {
-      image = var.mongodb_image
+      image    = var.mongodb_image
       stack_id = var.stack_id
     }
   }
@@ -143,8 +143,8 @@ resource "null_resource" "wait_for_db" {
 }
 
 data "consul_service" "mongo_service" {
-    depends_on = [ null_resource.wait_for_db ]
-    name = "${var.stack_id}-mongodb"
+  depends_on = [null_resource.wait_for_db]
+  name       = "${var.stack_id}-mongodb"
 }
 
 resource "vault_database_secrets_mount" "mongodb" {
@@ -188,13 +188,48 @@ resource "vault_database_secret_backend_role" "mongodb" {
   ]
 }
 
+data "vault_policy_document" "frontend" {
+  rule {
+    path         = "${var.stack_id}-mongodb/creds/demo"
+    capabilities = ["read"]
+  }
+}
+
+resource "vault_policy" "frontend" {
+  name   = "${var.stack_id}-frontend"
+  policy = data.vault_policy_document.frontend.hcl
+}
+
+resource "vault_jwt_auth_backend_role" "frontend_role" {
+  backend        = vault_jwt_auth_backend.nomad.path
+  role_name      = "${var.stack_id}-frontend"
+  token_policies = ["${var.stack_id}-frontend"]
+
+  bound_audiences = ["vault.io"]
+  bound_claims = {
+    nomad_namespace = "default"
+    nomad_job_id    = "${var.stack_id}-frontend"
+    nomad_task      = "${var.stack_id}-frontend"
+  }
+
+  claim_mappings = {
+    nomad_namespace = "nomad_namespace"
+    nomad_job_id    = "nomad_job_id"
+    nomad_task      = "nomad_task"
+  }
+
+  user_claim              = "/nomad_job_id"
+  user_claim_json_pointer = true
+  role_type               = "jwt"
+}
+
 resource "nomad_job" "frontend" {
   depends_on = [
     vault_database_secret_backend_role.mongodb
   ]
   hcl2 {
     vars = {
-      image = var.frontend_app_image
+      image    = var.frontend_app_image
       stack_id = var.stack_id
     }
   }
@@ -238,8 +273,8 @@ job "${var.stack_id}-frontend" {
         task "${var.stack_id}-frontend" {
             driver = "docker"
             vault {
-                policies = ["nomad"]
                 change_mode   = "restart"
+                role = "${var.stack_id}-frontend"
             }
             template {
                 data = <<EOH
@@ -259,8 +294,8 @@ EOT
 }
 
 data "consul_service" "frontend_service" {
-    depends_on = [ nomad_job.frontend ]
-    name = "${var.stack_id}-frontend"
+  depends_on = [nomad_job.frontend]
+  name       = "${var.stack_id}-frontend"
 }
 
 resource "consul_intention" "example" {

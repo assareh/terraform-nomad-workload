@@ -4,7 +4,7 @@ variable "stack_id" {
 }
 
 variable "tfc_organization" {
-  type    = string
+  type        = string
   description = "The TFCB organization to use"
 }
 
@@ -14,16 +14,16 @@ variable "region" {
 }
 
 variable "frontend_app_image" {
-  type = string
+  type        = string
   description = "Frontend app image to deploy"
 }
 
 variable "mongodb_image" {
-  type = string
+  type        = string
   description = "MongoDB image to deploy"
 }
 
 variable "create_consul_intention" {
-  type = bool
+  type        = bool
   description = "Allow the frontend to communicate with the backend (MongoDB)"
 }
