@@ -191,7 +191,7 @@ resource "vault_database_secret_backend_role" "mongodb" {
 data "vault_policy_document" "frontend" {
   rule {
     path         = "${var.stack_id}-mongodb/creds/demo"
-    capabilities = ["read"]
+    capabilities = ["read", "update"]
   }
 }
 
@@ -305,3 +305,5 @@ resource "consul_intention" "example" {
   destination_name = data.consul_service.mongo_service.name
   action           = "allow"
 } 
+
+# Warning: The consul_intention resource is deprecated in favor of the consul_config_entry resource. Please see https://registry.terraform.io/providers/hashicorp/consul/latest/docs/guides/upgrading#upgrading-to-2110 on instructions to upgrade.
