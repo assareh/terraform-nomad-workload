@@ -201,7 +201,7 @@ resource "vault_policy" "frontend" {
 }
 
 resource "vault_jwt_auth_backend_role" "frontend_role" {
-  backend        = vault_jwt_auth_backend.nomad.path
+  backend        = "nomad"
   role_name      = "${var.stack_id}-frontend"
   token_policies = ["${var.stack_id}-frontend"]
 
