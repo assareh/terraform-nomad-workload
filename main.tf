@@ -191,7 +191,7 @@ resource "vault_database_secret_backend_role" "mongodb" {
 data "vault_policy_document" "frontend" {
   rule {
     path         = "${var.stack_id}-mongodb/creds/demo"
-    capabilities = ["read", "update"]
+    capabilities = ["read"]
   }
 }
 
@@ -273,8 +273,9 @@ job "${var.stack_id}-frontend" {
         task "${var.stack_id}-frontend" {
             driver = "docker"
             vault {
-                change_mode   = "restart"
-                role = "${var.stack_id}-frontend"
+                change_mode = "restart"
+                namespace   = "admin"
+                role        = "${var.stack_id}-frontend"
             }
             template {
                 data = <<EOH
